@@ -17,18 +17,20 @@ def scrape_data():
     data = []
     for row in table.find_all("tr"):
         rider_td = row.find("td", class_="ridername")
-        time_td = row.find("td", class_="time")
+        position = row.find("td")
 
-        if rider_td and time_td:
+
+        if rider_td and position:
             achternaam_el = rider_td.find("span", class_="uppercase")
             voornaam_txt = achternaam_el.next_sibling.strip() if achternaam_el else ""
             achternaam = achternaam_el.get_text(strip=True) if achternaam_el else ""
             naam = f"{voornaam_txt} {achternaam}".strip()
 
-            tijd = time_td.get_text(strip=True)
+            position = position.get_text(strip=True)
             data.append({
-                "naam": naam,
-                "punten": tijd
+                "Position": position,
+                "naam": naam
+
             })
 
     return data
