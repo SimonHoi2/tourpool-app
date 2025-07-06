@@ -28,7 +28,7 @@ def scrape_data():
 
             position = position.get_text(strip=True)
             data.append({
-                "Position": position,
+                "position": position,
                 "naam": naam
 
             })
