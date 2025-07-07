@@ -1,11 +1,13 @@
 from flask import Flask, render_template_string, abort
 from scraper import scrape_data
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from teams import load_teams_xlsx
 app = Flask(__name__)
 
 # Dictionary met alle etappes
 stands = {}
+
+teams = load_teams_xlsx()
 
 def update():
     global stands
@@ -27,47 +29,103 @@ def home():
     html = """
     <html>
     <head>
-        <title>Tourpool Stand</title>
+        <title>Tourpool</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
-                padding: 2rem;
                 background-color: #f4f4f4;
-                text-align: center;
+                padding: 0;
+                margin: 0;
             }
-            h1 {
-                color: #222;
-            }
-            .button-container {
-                margin-bottom: 2rem;
-            }
-            .etappe-button {
-                display: inline-block;
-                margin: 0.2rem;
-                padding: 0.6rem 1rem;
+            .tabs {
+                display: flex;
                 background-color: #333;
-                color: white;
-                text-decoration: none;
-                border-radius: 4px;
-                font-weight: bold;
-                transition: background-color 0.3s;
+                overflow-x: auto;
             }
-            .etappe-button:hover {
+            .tab {
+                padding: 1rem;
+                color: white;
+                cursor: pointer;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            .tab:hover {
                 background-color: #555;
             }
+            .tab.active {
+                background-color: #007bff;
+            }
+            .content {
+                padding: 2rem;
+            }
+            table {
+                width: 60%;
+                margin: 0 auto;
+                border-collapse: collapse;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            th, td {
+                padding: 10px;
+                border: 1px solid #ddd;
+                text-align: left;
+            }
+            th {
+                background-color: #333;
+                color: white;
+            }
+            tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
         </style>
+        <script>
+            function showTab(id) {
+                const tabs = document.querySelectorAll('.tab');
+                tabs.forEach(tab => tab.classList.remove('active'));
+                document.getElementById('tab-' + id).classList.add('active');
+
+                const contents = document.querySelectorAll('.tabcontent');
+                contents.forEach(c => c.style.display = 'none');
+                document.getElementById('content-' + id).style.display = 'block';
+            }
+
+            window.onload = function() {
+                showTab(1);  // standaard Etappe 1 tonen
+            }
+        </script>
     </head>
     <body>
-        <h1>Tourpool Stand</h1>
-        <div class="button-container">
+        <div class="tabs">
     """
+
+    # Tabs voor Etappes 1 t/m 21
     for i in range(1, 22):
-        html += f'<a href="/etappe/{i}" class="etappe-button">Etappe {i}</a>'
-    html += """
-        </div>
-    </body>
-    </html>
-    """
+        html += f'<div class="tab" id="tab-{i}" onclick="showTab({i})">Etappe {i}</div>'
+
+    # Extra tab voor Teams
+    html += '<div class="tab" id="tab-teams" onclick="showTab(\'teams\')">Teams</div>'
+    html += '</div><div class="content">'
+
+    # Contentblokken voor alle etappes
+    for i in range(1, 22):
+        if i not in stands:
+            continue
+        stand = stands[i]
+        html += f'<div id="content-{i}" class="tabcontent" style="display:none;">'
+        html += f'<h2>Stand Etappe {i}</h2>'
+        html += "<table><tr><th>Positie</th><th>Naam</th></tr>"
+        for r in stand:
+            html += f"<tr><td>{r['position']}</td><td>{r['naam']}</td></tr>"
+        html += "</table></div>"
+
+    # Teamoverzicht (in teams)
+    html += '<div id="content-teams" class="tabcontent" style="display:none;">'
+    html += '<h2>Gekozen Renners per Deelnemer</h2><table><tr><th>Deelnemer</th><th>Renners</th></tr>'
+    for naam, renners in teams.items():
+        html += f"<tr><td>{naam}</td><td>{', '.join(renners)}</td></tr>"
+    html += "</table></div>"
+
+    html += "</div></body></html>"
     return render_template_string(html)
 
 @app.route("/etappe/<int:etappe_nr>")
@@ -163,6 +221,14 @@ def show_etappe(etappe_nr):
     </html>
     """
     return render_template_string(html, etappe_nr=etappe_nr)
+
+@app.route("/teams")
+def show_teams():
+    html = "<h1>Gekozen renners per deelnemer</h1><ul>"
+    for naam, renners in teams.items():
+        html += f"<li><strong>{naam}</strong>: {', '.join(renners)}</li>"
+    html += "</ul>"
+    return render_template_string(html)
 
 if __name__ == "__main__":
     app.run()
